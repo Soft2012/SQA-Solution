@@ -155,7 +155,6 @@ function App() {
           // setMessages(prevMessages => [...prevMessages, out_put_string]);
         } 
         catch (error) {
-          setLoading(false);
           console.error('Error calling ChatGPT API:', error.response ? error.response.data : error.message);
         }
       }
