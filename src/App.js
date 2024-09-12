@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import Mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist/webpack';
-import {optimizeDocument, segmentSection, generatePrompt, chatgptAPIRequest} from './openaiService.js';
+import {optimizeDocument, segmentSection} from './text_processer.js';
 import './App.css';
+import TypingEffect from "./TypingEffect.jsx"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`;
 
@@ -40,15 +42,15 @@ function App() {
       const typedarray = new Uint8Array(this.result);
 
       const pdf = await pdfjsLib.getDocument({data: typedarray}).promise;
-      let text = '';
+      let content = '';
 
       for (let i = 0; i < pdf.numPages; i++) {
         const page = await pdf.getPage(i + 1);
         const content = await page.getTextContent();
         const strings = content.items.map(item => item.str);
-        text += strings.join(' ');
+        content += strings.join('\n');
       }
-      setFileContent(text);
+      setFileContent(content);
     };
     reader.readAsArrayBuffer(file);
   };
@@ -96,60 +98,19 @@ function App() {
       setLoading(true);
       
       const chunks = segmentSection(optimizeDocument(fileContent))
-      const allTestCases = [];
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
-        const prompt = generatePrompt(chunk)
 
         try {
-            const test_cases = await chatgptAPIRequest(prompt)
-            allTestCases.push(test_cases);
+          const response = await axios.post('https://sqa-backend.vercel.app/test', {chunk});
+          setText(response.data.text)
         } 
         catch (error) {
-            console.error('Error calling ChatGPT API:', error.response ? error.response.data : error.message);
-            //console.log("API_KEY ----- ", API_KEY)
+          setLoading(false);
+          console.error('Error calling ChatGPT API:', error.response ? error.response.data : error.message);
         }
       }
       
-      const test_case_list = []
-      for (const test_case of allTestCases)
-      {
-        console.log(test_case)
-        const json_obj = JSON.parse(test_case);
-        const child_list = json_obj["test_cases"]
-        for (const one_child of child_list)
-        {
-          test_case_list.push(one_child);
-        }
-      }
-      
-      let out_put_string = `Total Count : ${test_case_list.length}\n\n`
-      let id = 1
-      for (const test_case of test_case_list)
-      {
-        let test_step_string = ""
-        const test_step = test_case["Test Steps"]
-        let step_id = 1
-        for (const step of test_step)
-        {
-          test_step_string += `${step_id}. ` + step + ".\n"
-          step_id++
-        }
-
-        out_put_string += (
-          `Test Case ${id}\n` +
-          `Title: ${test_case["Title"]}\n` +
-          `Description: ${test_case["Description"]}\n` +
-          `Test Steps:\n${test_step_string}` +
-          `Expected Outcome: ${test_case["Expected Outcome"]}\n` +
-          `Priority: ${test_case["Priority"]}\n\n`)
-          
-        id++;
-      }
-        
-      allTestCases.join("\n");
-      setText(out_put_string)
-     
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -188,13 +149,7 @@ function App() {
             <div style={{ width: '50%', paddingLeft: '15px', textAlign: 'center'}}>
               Test Cases
               <label className="label">
-                <textarea 
-                  rows={20} 
-                  value={text} 
-                  onChange={handleTextChange} 
-                  className="textarea" 
-                  style={{ width: '100%' }} 
-                />
+                <TypingEffect text = {text} speed = {5}/>
               </label>
             </div>
           </div>
