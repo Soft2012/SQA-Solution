@@ -109,7 +109,7 @@ function App() {
         const chunk = chunks[i];
 
         try {
-          const response = await axios.post('https://sqa-backend.vercel.app/test', {chunk});
+          const response = await axios.post('https://sqa-backend-b91zepar4-soft2012-5b5ad68f.vercel.app/test', {chunk});
 
           const testcases_obj = response.data.testcases
           console.log(testcases_obj)
