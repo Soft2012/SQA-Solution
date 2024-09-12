@@ -13,6 +13,10 @@ function App() {
   const [text, setText] = useState('');
   const [fileContent, setFileContent] = useState('');
   const [loading, setLoading] = useState(false);  
+  const [messages, setMessages] = useState([]);
+  const typingSpeed = 1;  // Typing speed in milliseconds
+  const delayBetweenMessages = 0;  // Delay between typing each message in milliseconds
+
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
@@ -98,12 +102,57 @@ function App() {
       setLoading(true);
       
       const chunks = segmentSection(optimizeDocument(fileContent))
+
+      let id = 1
+      let total_str = ""
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
 
         try {
           const response = await axios.post('https://sqa-backend.vercel.app/test', {chunk});
-          setText(response.data.text)
+
+          const testcases_obj = response.data.testcases
+          console.log(testcases_obj)
+          const test_case_list = testcases_obj["test_cases"]
+
+          let out_put_string = ''
+          for (const test_case of test_case_list)
+          {
+            let test_step_string = ""
+            const test_step = test_case["Test Steps"]
+            let step_id = 1
+            for (const step of test_step)
+            {
+              test_step_string += `${step_id}. ` + step + ".\n"
+              step_id++
+            }
+
+            const data_object = test_case["Data to use"]
+            let data_to_use = '';
+            let data_to_use_id = 1;
+            Object.entries(data_object).forEach(([key, value]) => {
+              // console.log(`Key: ${key}, Value: ${value}`);
+              data_to_use += `${data_to_use_id}. ${key} : ${value}\n`
+              data_to_use_id++
+            });
+            // console.log("data to use:\n", data_to_use)
+            
+            let testcase_string = (
+              `Test Case ${id}\n` +
+              `Title: ${test_case["Title"]}\n` +
+              `Description: ${test_case["Description"]}\n` +
+              `Precondition: ${test_case["Preconditions"]}\n` +
+              `Test Steps:\n${test_step_string}` +
+              `Expected Outcome: ${test_case["Expected Outcome"]}\n` +
+              `Data to use:\n${data_to_use}` +
+              `Priority: ${test_case["Priority"]}\n\n`)
+            
+            out_put_string += testcase_string
+            id++;
+          }
+
+          total_str += out_put_string
+          // setMessages(prevMessages => [...prevMessages, out_put_string]);
         } 
         catch (error) {
           setLoading(false);
@@ -111,6 +160,7 @@ function App() {
         }
       }
       
+      setText(total_str)
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -149,7 +199,14 @@ function App() {
             <div style={{ width: '50%', paddingLeft: '15px', textAlign: 'center'}}>
               Test Cases
               <label className="label">
-                <TypingEffect text = {text} speed = {5}/>
+                {/* <TypingEffect texts={messages} speed={typingSpeed} delayBetweenMessages={delayBetweenMessages} /> */}
+                <textarea 
+                  rows={20} 
+                  value={text} 
+                  readOnly 
+                  className="textarea" 
+                  style={{ width: '100%' }} 
+                />
               </label>
             </div>
           </div>
